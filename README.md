@@ -53,15 +53,67 @@ result = wx_key.poll_key_data()
 
 ---
 
-## 3. 快速测试 (Demo)
+## 3. 编译与安装
 
-我们提供了一个综合测试脚本 `scripts/test_all.py`，它演示了三种不同的获取方式：
+本仓库**根目录没有** `setup.py` / `pyproject.toml`，不能直接 `pip install .`。  
+需要先用 CMake 编译出扩展（`.pyd` / `.so`），再拷贝到 `packaging/wx_key/`，最后从 `packaging` 安装。
+
+### 依赖
+
+- Python 3.10+（与目标解释器一致）
+- CMake、C++ 工具链（Windows：Visual Studio Build Tools）
+- Python 包：`setuptools`、`wheel`、`pybind11`、`cmake`
 
 ```bash
-# 1. 编译并安装
-pip install .
+pip install setuptools wheel pybind11 cmake
+```
 
-# 2. 运行测试脚本 (需要管理员权限)
+### Windows
+
+在 PowerShell 中于仓库根目录执行：
+
+```powershell
+$py_path = python -c "import sys; print(sys.executable)"
+$pb_path = python -c "import pybind11; print(pybind11.get_cmake_dir())"
+
+cmake -S py_wx_key -B build `
+  "-Dpybind11_DIR=$pb_path" `
+  "-DPython_EXECUTABLE=$py_path" `
+  -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build --config Release
+
+Copy-Item build\Release\*.pyd packaging\wx_key\ -Force
+pip install .\packaging
+```
+
+### Linux
+
+```bash
+pip install setuptools wheel pybind11 cmake ninja
+
+cmake -S py_wx_key -B build -G Ninja \
+  "-Dpybind11_DIR=$(python -c 'import pybind11; print(pybind11.get_cmake_dir())')" \
+  "-DPython_EXECUTABLE=$(python -c 'import sys; print(sys.executable)')" \
+  -DCMAKE_BUILD_TYPE=Release
+
+cmake --build build
+cp build/wx_key.*.so packaging/wx_key/
+pip install ./packaging
+```
+
+### 可选：使用 CI 产物
+
+也可从 GitHub Actions 的 Artifacts 下载对应 Python 版本的 wheel，再直接安装：
+
+```bash
+pip install path/to/wx_key-*.whl
+```
+
+### 快速测试 (Demo)
+
+```bash
+# 需要管理员权限（Hook 相关用例）
 python scripts/test_all.py
 ```
 
